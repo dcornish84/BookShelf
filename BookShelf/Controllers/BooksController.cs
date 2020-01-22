@@ -43,6 +43,7 @@ namespace BookShelf.Controllers
             var book = await _context.Book
                 .Include(b => b.ApplicationUser)
                 .Include(b => b.Author)
+                .Include(b => b.Comments)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (book == null)
             {
@@ -91,8 +92,8 @@ namespace BookShelf.Controllers
             {
                 return NotFound();
             }
-            ViewData["ApplicationUserId"] = new SelectList(_context.ApplicationUsers, "Id", "Id", book.ApplicationUserId);
-            ViewData["AuthorId"] = new SelectList(_context.Author, "Id", "Id", book.AuthorId);
+            var user = await GetCurrentUserAsync();
+            ViewData["AuthorId"] = new SelectList(_context.Author.Where(a => a.ApplicationUserId == user.Id), "Id", "Name", book.AuthorId);
             return View(book);
         }
 
