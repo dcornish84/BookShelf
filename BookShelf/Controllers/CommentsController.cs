@@ -28,7 +28,7 @@ namespace BookShelf.Controllers
         public async Task<IActionResult> Index()
         {
             var user = await GetCurrentUserAsync();
-            var applicationDbContext = _context.Comment.Include(c => c.ApplicationUser).Include(c => c.Book);
+            var applicationDbContext = _context.Comment.Where(b => b.ApplicationUserId == user.Id).Include(c => c.ApplicationUser).Include(c => c.Book);
             return View(await applicationDbContext.ToListAsync());
         }
 
@@ -53,34 +53,51 @@ namespace BookShelf.Controllers
         }
 
         // GET: Comments/Create
-        public IActionResult Create()
+        [HttpGet("comments/create/{bookId}")]
+        public async Task<IActionResult> Create(int bookId)
         {
-            
-            ViewData["BookId"] = new SelectList(_context.Book, "Id", "Title");
+            if (bookId == null)
+            {
+                var user = await GetCurrentUserAsync();
+                
+               
+            }
             return View();
         }
 
         // POST: Comments/Create
         // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
         // more details see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
+        [HttpPost("comments/create/{bookId}")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Text,ApplicationUserId,BookId")] Comment comment)
+        public async Task<IActionResult> Create([FromRoute] int bookId, [Bind("Id,Text,ApplicationUserId,BookId")] Comment comment)
         {
+            
+            var user = await GetCurrentUserAsync();
+            comment.ApplicationUserId = user.Id;
+
+            if (bookId != null)
+            {
+                comment.BookId = bookId;
+            }
+
             if (ModelState.IsValid)
             {
                 _context.Add(comment);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction("Details", "Books", new { id = bookId });
             }
             
-            ViewData["BookId"] = new SelectList(_context.Book, "Id", "Title", comment.BookId);
+            ViewData["BookId"] = new SelectList(_context.Book.Where(b => b.ApplicationUserId == user.Id), "Id", "Title", comment.BookId);
             return View(comment);
         }
 
         // GET: Comments/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
+            var user = await GetCurrentUserAsync();
+            var applicationDbContext = _context.Comment;
+
             if (id == null)
             {
                 return NotFound();
@@ -92,7 +109,7 @@ namespace BookShelf.Controllers
                 return NotFound();
             }
             
-            ViewData["BookId"] = new SelectList(_context.Book, "Id", "Title", comment.BookId);
+            ViewData["BookId"] = new SelectList(_context.Book.Where(b => b.ApplicationUserId == user.Id), "Id", "Title", comment.BookId);
             return View(comment);
         }
 
@@ -128,7 +145,7 @@ namespace BookShelf.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["ApplicationUserId"] = new SelectList(_context.ApplicationUsers, "Id", "Id", comment.ApplicationUserId);
+            
             ViewData["BookId"] = new SelectList(_context.Book, "Id", "Title", comment.BookId);
             return View(comment);
         }
@@ -144,6 +161,7 @@ namespace BookShelf.Controllers
             var comment = await _context.Comment
                 
                 .Include(c => c.Book)
+                .Include(c => c.ApplicationUserId)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (comment == null)
             {
